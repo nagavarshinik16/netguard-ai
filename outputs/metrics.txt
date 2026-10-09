@@ -1,0 +1,26 @@
+AI-Based Network Fault Prediction - Model Evaluation
+====================================================
+Dataset size      : 12000 records, 6 devices
+Train / Test      : 9000 / 3000
+Model             : RandomForestClassifier(n_estimators=150, max_depth=12)
+Overall accuracy  : 98.23%
+Fault detection   : 96.01%  (faults correctly flagged)
+False alarm rate  : 0.51%  (normal traffic flagged as fault)
+
+Classification report:
+              precision    recall  f1-score   support
+
+      Normal      0.984     0.995     0.990      2148
+  Congestion      0.967     0.954     0.960       305
+Link Failure      0.996     0.996     0.996       236
+CPU Overload      0.973     0.913     0.942       311
+
+    accuracy                          0.982      3000
+   macro avg      0.980     0.964     0.972      3000
+weighted avg      0.982     0.982     0.982      3000
+
+Confusion matrix (rows=actual, cols=predicted; order=['Normal', 'Congestion', 'Link Failure', 'CPU Overload']):
+[[2137    5    0    6]
+ [  11  291    1    2]
+ [   0    1  235    0]
+ [  23    4    0  284]]

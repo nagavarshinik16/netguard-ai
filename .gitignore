@@ -1,0 +1,18 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Machine-specific / generated at runtime
+ACCESS_URL.txt
+models/.trained_on_this_pc
+outputs/alerts.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archives
+*.zip
