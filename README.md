@@ -127,6 +127,7 @@ python train_model.py             # metrics -> outputs/metrics.txt
 python export_model.py            # -> docs/assets/model.json
 node tests/verify_web_model.mjs   # JS == scikit-learn check
 node tests/verify_simulation.mjs  # JS simulator accuracy check
+node tests/verify_viewer_mapping.mjs  # visitor-measurement -> AI verdict scenarios
 ```
 
 ### Desktop / LAN edition (Python, with LAN device discovery)

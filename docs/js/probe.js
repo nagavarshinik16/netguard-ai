@@ -244,15 +244,27 @@ function lagMonitor(onValue) {
 // ------------------------------------------------------------------ model features
 /**
  * Converts browser measurements into the 5 features the AI model was trained on.
- * Link utilisation is estimated from latency inflation over the session's baseline RTT
- * (queueing delay grows as a link congests - the principle behind bufferbloat tests).
+ *
+ * The model learned on enterprise LAN devices (normal latency ~20 ms). Internet RTT also contains
+ * propagation delay (distance to the server), which is not a fault, so the measurements are
+ * normalised first:
+ *  - baseline  = rolling best-case RTT = distance component
+ *  - queueing  = latency - baseline    = congestion symptom (queues grow as a link saturates)
+ *  - latency feature     = 20 ms (healthy LAN equivalent) + queueing (+ a penalty for very slow paths)
+ *  - utilisation feature = 30 % + 0.6 %/ms of queueing, reduced by packet loss
+ *                          (a failing, lossy link carries less traffic, not more)
  */
 export function toModelSample({ cpu, latency, loss, baseline }) {
-  const ratio = baseline && latency ? latency / baseline : 1;
-  const bandwidth = clamp(30 + (ratio - 1) * 35, 5, 100);
+  const lossPct = clamp(loss ?? 0, 0, 100);
+  if (latency == null) {   // nothing answered: total outage
+    return { cpu: clamp(cpu ?? 30, 0, 100), bandwidth: 5, packet_loss: Math.max(lossPct, 50), latency: 300, throughput: 25 };
+  }
+  const base = baseline ?? latency;
+  const queueing = Math.max(0, latency - base);
+  const latencyFeature = clamp(20 + queueing + Math.max(0, base - 200) * 0.2, 1, 1000);
+  const bandwidth = clamp((30 + queueing * 0.6) * Math.max(0.2, 1 - lossPct / 15), 5, 100);
   return {
-    cpu: clamp(cpu ?? 30, 0, 100), bandwidth, packet_loss: clamp(loss ?? 0, 0, 100),
-    latency: clamp(latency ?? 999, 1, 1000),
-    throughput: 1000 * bandwidth / 100 * (1 - clamp(loss ?? 0, 0, 100) / 100),
+    cpu: clamp(cpu ?? 30, 0, 100), bandwidth, packet_loss: lossPct, latency: latencyFeature,
+    throughput: 1000 * bandwidth / 100 * (1 - lossPct / 100),
   };
 }

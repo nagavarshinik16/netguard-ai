@@ -89,7 +89,7 @@ async function startViewerMonitoring() {
   probe.networkIdentity().then((n) => { v.net = n; refreshLive(); });
   probe.cpuMonitor((c) => { v.cpu = c; });
   const cycle = async () => {
-    if (document.hidden) return;
+    if (document.hidden || v.speedRunning) return; // a speed test saturates the link on purpose - don't measure it as congestion
     const results = await probe.probeAll(3);
     v.probes = results;
     const ok = results.filter((r) => r.latency != null);
@@ -97,7 +97,10 @@ async function startViewerMonitoring() {
     const latency = best?.latency ?? null;
     const jitter = best?.jitter ?? null;
     const loss = results.reduce((s, r) => s + r.loss, 0) / results.length;
-    if (latency != null) v.baseline = v.baseline == null ? latency : Math.min(v.baseline, latency);
+    if (latency != null) {
+      v.recent = [...(v.recent || []), latency].slice(-10);
+      v.baseline = Math.min(...v.recent); // rolling best-case RTT = path latency without queueing
+    }
     const sample = probe.toModelSample({ cpu: v.cpu?.value, latency, loss, baseline: v.baseline });
     v.ai = state.model.predict(sample, { useAnomaly: false });
     v.sample = sample;
@@ -390,7 +393,8 @@ function updateMyNetwork() {
     set("mn-ai", `<div class="card" style="border-left:4px solid ${c}"><h3>🧠 AI assessment of your connection ${badge(v.ai.status)}</h3>
       <div>Predicted condition <b>${v.ai.predicted}</b> · fault probability <b>${fmt(v.ai.faultProbability, 2)}</b> ·
       ${v.ai.recommendation || "All metrics within normal operating range."}</div>
-      <div class="dim" style="font-size:.8rem;margin-top:6px">Model input → CPU ${fmt(v.sample.cpu, 0)}% · link utilisation ${fmt(v.sample.bandwidth, 0)}% (from latency inflation over your ${fmt(v.baseline, 0)} ms baseline) · loss ${fmt(v.sample.packet_loss, 1)}% · latency ${fmt(v.sample.latency, 0)} ms</div></div>`);
+      <div class="dim" style="font-size:.8rem;margin-top:6px">Model input → CPU ${fmt(v.sample.cpu, 0)}% · est. link utilisation ${fmt(v.sample.bandwidth, 0)}% · loss ${fmt(v.sample.packet_loss, 1)}% · normalised latency ${fmt(v.sample.latency, 0)} ms
+      (your ${fmt(v.history.at(-1)?.latency, 0)} ms RTT = ${fmt(v.baseline, 0)} ms distance baseline + ${fmt(Math.max(0, (v.history.at(-1)?.latency ?? 0) - v.baseline), 0)} ms queueing)</div></div>`);
   } else set("mn-ai", `<div class="card"><span class="live-dot"></span>Running first measurements…</div>`);
 
   set("mn-kpis", [
